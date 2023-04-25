@@ -38,7 +38,7 @@ enum NodeType
 
     // control flow
     NODE_LIST,
-    // NODE_ASSIGN,
+    NODE_ASSIGN,
 };
 
 struct MetaData
@@ -69,13 +69,14 @@ void destroy_ast(GNode *ast);
 
 GNode *new_func(enum BuiltinFunction func_type, GNode *exp);
 
+GNode *new_list(GNode *pre, GNode *list);
+
 GNode *new_num(double num);
 
 GNode *new_x();
 
 GNode *new_exp();
 
-GNode *do_assign(GNode *symbol, GNode *exp);
 
 // -------------------------------- emit program --------------------------------
 // emit program ast to other structure.

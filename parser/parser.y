@@ -49,14 +49,14 @@ exp: exp '+' exp { $$ = new_ast(NODE_ADD, $1, $3); }
 ;
 
 stmt: exp ';' { }
+| LET NAME '=' exp ';' {
+    $$ = new_ast(NODE_ASSIGN, $2, $4);
+}
 ;
 
 list: /* empty */ { $$ = NULL; }
 | stmt list {
-    if($2 == NULL)
-        $$ = $1;
-    else
-        $$ = new_ast(NODE_LIST, $1, $2);
+    $$ = new_list($1, $2);
 }
 ;
 
@@ -65,10 +65,6 @@ prog_list: /* empty */ { }
     emit($2);
     simplify($2);
     printf(">>>");
-}
-| prog_list LET NAME '=' exp ';' EOL {
-    do_assign($3, $5);
-    printf(">>>"); 
 }
 | prog_list error EOL {
     yyerrok;

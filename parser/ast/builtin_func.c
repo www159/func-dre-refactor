@@ -30,7 +30,7 @@ static void handle_print(GNode *ast)
     struct MetaData *const meta_data = exp->data;
     if (meta_data->node_type == NODE_NAME)
     {
-        if (!is_declare(exp_mut))
+        if (!is_declare(exp))
         {
             return;
         }

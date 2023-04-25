@@ -100,6 +100,28 @@ GNode *new_func(enum BuiltinFunction func_type, GNode *exp)
     return ast;
 }
 
+GNode *new_list(GNode *pre, GNode *list)
+{
+    GNode *ast;
+    if (list == NULL)
+    {
+        ast = new_ast(NODE_LIST, pre, NULL);
+    }
+    else
+    {
+        ast = list;
+        struct MetaData *const meta_data = ast->data;
+        if (meta_data->node_type != NODE_LIST)
+        {
+            g_debug("abort:list should have type 'list node'");
+            return ast;
+        }
+        GNode *first_child = g_node_first_child(ast);
+        g_node_insert_before(ast, first_child, pre);
+    }
+    return ast;
+}
+
 GNode *new_num(double num)
 {
     struct MetaData *const meta_data = new_meta_data_num(num);
@@ -122,37 +144,4 @@ GNode *new_exp()
     GNode *const ast = g_node_new(meta_data);
 
     return ast;
-}
-
-// assignment prog
-//  NODE_ASSIGN
-//     _|________
-//    |          |
-// NODE_SYMBOL  NODE_EXP
-//
-// move exp as symbol' children
-// static void handle_assign(GNode *ast)
-GNode *do_assign(GNode *symbol, GNode *exp)
-{
-    if(!is_declare(exp)) {
-        return;
-    }
-    if (!try_expand(exp))
-    {
-        return;
-    }
-    struct MetaData *const meta_data = symbol->data;
-    meta_data->declared = TRUE;
-    GNode *symbol_exp = g_node_first_child(symbol);
-
-    // unlink and destroy old exp of symbol
-    if (symbol_exp != NULL)
-    {
-        g_node_unlink(symbol_exp);
-        destroy_ast(symbol_exp);
-    }
-
-    g_node_append(symbol, exp);
-    
-    return symbol;
 }

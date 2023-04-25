@@ -7,6 +7,8 @@
         "gasyncqueue.h": "c",
         "gspawn.h": "c",
         "gstrfuncs.h": "c",
-        "gmacros.h": "c"
+        "gmacros.h": "c",
+        "cmath": "c",
+        "type_traits": "c"
     }
 }
