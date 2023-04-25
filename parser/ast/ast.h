@@ -2,7 +2,6 @@
 #define _AST_H_
 
 #include <glib.h>
-
 // -------------------------------- yacc --------------------------------
 
 extern int yylineno;
@@ -26,16 +25,20 @@ enum NodeType
     NODE_DIV,
     NODE_POWER,
     NODE_MINUS,
+
+    // outer minis
+    NODE_OUTER_MINUS,
+
     NODE_LN,
     NODE_EXP,
-    NODE_PARAM,
+    NODE_X,
     NODE_DREVIDE,
     NODE_FUNC_EMBED,
     NODE_FUNC_BUILT_IN,
 
     // control flow
     NODE_LIST,
-    NODE_ASSIGN,
+    // NODE_ASSIGN,
 };
 
 struct MetaData
@@ -68,7 +71,11 @@ GNode *new_func(enum BuiltinFunction func_type, GNode *exp);
 
 GNode *new_num(double num);
 
-GNode *do_def(GNode *symbol, GNode *exp);
+GNode *new_x();
+
+GNode *new_exp();
+
+void do_assign(GNode *symbol, GNode *exp);
 
 // -------------------------------- emit program --------------------------------
 // emit program ast to other structure.
@@ -77,8 +84,10 @@ GNode *do_def(GNode *symbol, GNode *exp);
 // 1. let xx = xxxx.
 void emit(GNode *ast);
 
-//
-void _ast(GNode *ast);
+// --------------------------------  simplify program --------------------------------
+// delete 'program structure' node
+// remain variable node
+void simplify(GNode *ast);
 
 // -------------------------------- symbol table --------------------------------
 

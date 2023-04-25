@@ -14,6 +14,9 @@ add_library(
     emit.c
     yacc.c
     builtin_func.c
+    simplify.c
+    init.c
+    help.c
 )
 
 target_include_directories(
@@ -24,5 +27,6 @@ target_include_directories(
 
 target_link_libraries(
     ast
+    PUBLIC
     ${GLIB_LIBRARIES}
 )

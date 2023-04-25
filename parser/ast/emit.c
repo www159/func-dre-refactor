@@ -1,22 +1,20 @@
 #include "ast.h"
+#include "mod.h"
 
-static void handle_assign(GNode *ast);
 void emit(GNode *ast)
 {
-    printf("start emit\n");
+    g_debug("start emit");
 
     if (ast == NULL)
     {
-        printf("empty ast!");
+        g_debug("abort:failed to emit NULL ast");
+        return;
     }
 
     struct MetaData *meta_data = ast->data;
 
     switch (meta_data->node_type)
-    {
-    case NODE_ASSIGN:
-        handle_assign(ast);
-        break;
+    {;
     case NODE_FUNC_BUILT_IN:
         handle_func_builtin(ast);
         break;
@@ -31,22 +29,22 @@ void emit(GNode *ast)
 // NODE_SYMBOL  NODE_EXP
 //
 // move exp as symbol' children
-static void handle_assign(GNode *ast)
-{
-    GNode *symbol = g_node_first_child(ast);
-    GNode *exp = symbol->next;
-    GNode *symbol_exp = g_tree_node_first(symbol);
+// static void handle_assign(GNode *ast)
+// {
+//     GNode *symbol = g_node_first_child(ast);
+//     GNode *exp = symbol->next;
+//     GNode *symbol_exp = g_tree_node_first(symbol);
 
-    // unlink and destroy old exp of symbol
-    if (symbol_exp != NULL)
-    {
-        g_node_unlink(symbol_exp);
-        g_node_destroy(symbol_exp);
-    }
+//     // unlink and destroy old exp of symbol
+//     if (symbol_exp != NULL)
+//     {
+//         g_node_unlink(symbol_exp);
+//         g_node_destroy(symbol_exp);
+//     }
 
-    // unlink symbol from ast and replace ast
-    g_node_unlink(symbol);
-    destroy_ast(ast);
-    g_node_append(symbol, exp);
-    ast = symbol;
-}
+//     // unlink symbol from ast and replace ast
+//     g_node_unlink(symbol);
+//     destroy_ast(ast);
+//     g_node_append(symbol, exp);
+//     ast = symbol;
+// }

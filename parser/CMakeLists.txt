@@ -35,13 +35,12 @@ add_library(
 target_include_directories(
     parser
     PRIVATE
-    ast
-    ${GLIB_INCLUDE_DIRS}    
+    ast  
 )
 
 target_link_libraries(
     parser 
-    PRIVATE
+    PUBLIC
     ast
     ${FLEX_LIBRARIES}
 )

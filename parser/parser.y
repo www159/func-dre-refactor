@@ -42,8 +42,8 @@ exp: exp '+' exp { $$ = new_ast(NODE_ADD, $1, $3); }
 | LN '(' exp ')' { $$ = new_ast(NODE_LN, $3, NULL); }
 | NUMBER { $$ = new_num($1); }
 | dre_name { $$ = $1; }
-| EXP { $$ = new_ast(NODE_EXP, NULL, NULL); }
-| X { $$ = new_ast(NODE_PARAM, NULL, NULL); }
+| EXP { $$ = new_exp(); }
+| X { $$ = new_x(); }
 | dre_name '(' exp ')' { $$ = new_ast(NODE_FUNC_EMBED, $1, $3); }
 | FUNC '(' exp ')' { $$ = new_func($1, $3); }
 ;
@@ -63,11 +63,12 @@ list: /* empty */ { $$ = NULL; }
 prog_list: /* empty */ { }
 | prog_list list EOL {
     emit($2);
+    simplify($2);
     printf(">>>");
 }
 | prog_list LET NAME '=' exp ';' EOL {
+    do_assign($3, $5);
     printf(">>>"); 
-    do_def($3, $5); 
 }
 | prog_list error EOL {
     yyerrok;

@@ -1,9 +1,11 @@
 #include "ast.h"
+#include "mod.h"
 
 static void handle_print(GNode *ast);
 static void builtin_print(GNode *exp, enum NodeType parent_type);
 static void parens_or_not(enum NodeType cur_type, enum NodeType parent_type, int is_left);
 static int priority_larger(enum NodeType src, enum NodeType dest);
+
 // handle built_in_func
 void handle_func_builtin(GNode *ast)
 {
@@ -23,27 +25,36 @@ void handle_func_builtin(GNode *ast)
 // output: x^5+3;
 static void handle_print(GNode *ast)
 {
-    GNode *exp = g_node_first_child(ast);
-    struct MetaData *meta_data = exp->data;
+    GNode *const exp = g_node_first_child(ast);
+    GNode *exp_mut = NULL;
+    struct MetaData *const meta_data = exp->data;
     if (meta_data->node_type == NODE_NAME)
     {
-        if (!meta_data->declared)
+        if (!is_declare(exp_mut))
         {
-            yyerror("symbol '%s' not defined", meta_data->name->str);
             return;
         }
-        else
-        {
-            printf("%s = ", meta_data->name->str);
-        }
-        exp = g_node_first_child(exp);
+
+        printf("%s = ", meta_data->name->str);
+
+        exp_mut = g_node_first_child(exp);
     }
     else
     {
+        exp_mut = exp;
+        if (!is_declare(exp_mut))
+        {
+            return;
+        }
+        // expend rvalue
+        if (!try_expand(exp_mut))
+        {
+            return;
+        }
         printf("rvalue = ");
     }
 
-    builtin_print(exp, (enum NodeType)NULL);
+    builtin_print(exp_mut, (enum NodeType)NULL);
     printf("\n");
 }
 
@@ -56,10 +67,10 @@ static void handle_print(GNode *ast)
 
 static void builtin_print(GNode *exp, enum NodeType parent_type)
 {
-    struct MetaData *meta_data = exp->data;
+    struct MetaData *const meta_data = exp->data;
 
     // warn macro dependenies
-    GNode *l_exp = g_node_first_child(exp);
+    GNode *const l_exp = g_node_first_child(exp);
     GNode *r_exp = NULL;
     if (l_exp != NULL)
     {
@@ -75,8 +86,7 @@ static void builtin_print(GNode *exp, enum NodeType parent_type)
 
     case NODE_SUB:
         print_two_exp(NODE_SUB, parent_type, "-");
-        builtin_print(l_exp, NODE_SUB);
-
+        break;
     case NODE_MUL:
         print_two_exp(NODE_MUL, parent_type, "*");
         break;
@@ -85,11 +95,28 @@ static void builtin_print(GNode *exp, enum NodeType parent_type)
         break;
     case NODE_POWER:
         print_two_exp(NODE_POWER, parent_type, "^");
+        break;
     // one_exp
     case NODE_MINUS:
+        parens_or_not(NODE_MINUS, parent_type, FALSE);
+        printf("-");
+        builtin_print(l_exp, NODE_OUTER_MINUS);
+        parens_or_not(NODE_MINUS, parent_type, FALSE);
+        break;
+    case NODE_LN:
+        printf("ln(");
+        builtin_print(l_exp, NODE_LN);
+        printf(")");
+        break;
+    case NODE_EXP:
+        printf("e");
+        break;
     // no exp
     case NODE_NUMBER:
         printf("%f", meta_data->val);
+        break;
+    case NODE_X:
+        printf("x");
         break;
     case (enum NodeType)NULL:
         break;
@@ -142,14 +169,24 @@ static int priority_larger(enum NodeType src, enum NodeType dest)
         }
 
     case NODE_POWER:
-    {
         switch (dest)
         {
         case NODE_POWER:
+        case NODE_OUTER_MINUS:
             return 0;
         default:
             return 1;
         }
-    }
+
+    case NODE_OUTER_MINUS:
+        switch (dest)
+        {
+        case NODE_OUTER_MINUS:
+            return 0;
+        default:
+            return 1;
+        }
+    default:
+        return 0;
     }
 }

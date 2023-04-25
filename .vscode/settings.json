@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "*.d": "asm-intel-x86-generic",
+        "ast.h": "c",
+        "glib.h": "c",
+        "galloca.h": "c",
+        "gasyncqueue.h": "c",
+        "gspawn.h": "c",
+        "gstrfuncs.h": "c",
+        "gmacros.h": "c"
+    }
+}
