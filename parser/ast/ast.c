@@ -132,7 +132,7 @@ GNode *new_exp()
 //
 // move exp as symbol' children
 // static void handle_assign(GNode *ast)
-void do_assign(GNode *symbol, GNode *exp)
+GNode *do_assign(GNode *symbol, GNode *exp)
 {
     if(!is_declare(exp)) {
         return;
@@ -153,4 +153,6 @@ void do_assign(GNode *symbol, GNode *exp)
     }
 
     g_node_append(symbol, exp);
+    
+    return symbol;
 }

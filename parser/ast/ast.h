@@ -75,7 +75,7 @@ GNode *new_x();
 
 GNode *new_exp();
 
-void do_assign(GNode *symbol, GNode *exp);
+GNode *do_assign(GNode *symbol, GNode *exp);
 
 // -------------------------------- emit program --------------------------------
 // emit program ast to other structure.

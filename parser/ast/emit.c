@@ -14,7 +14,7 @@ void emit(GNode *ast)
     struct MetaData *meta_data = ast->data;
 
     switch (meta_data->node_type)
-    {;
+    {
     case NODE_FUNC_BUILT_IN:
         handle_func_builtin(ast);
         break;
