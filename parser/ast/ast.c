@@ -10,7 +10,7 @@ static struct MetaData *new_meta_data(enum NodeType node_type)
     return meta_data;
 }
 
-static struct MetaData *new_meta_data_func(enum BuiltinFunction func_type)
+struct MetaData *new_meta_data_func(enum BuiltinFunction func_type)
 {
     struct MetaData *meta_data = new_meta_data(NODE_FUNC_BUILT_IN);
     meta_data->func_type = func_type;
@@ -35,7 +35,7 @@ struct MetaData *new_meta_data_symbol(GString *name)
     return meta_data;
 }
 
-static void destroy_meta_data(GNode *node)
+void destroy_meta_data(GNode *node)
 {
     struct MetaData *meta_data = node->data;
     if (meta_data->node_type == NODE_NAME)

@@ -9,6 +9,7 @@
         "gstrfuncs.h": "c",
         "gmacros.h": "c",
         "cmath": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "mod.h": "c"
     }
 }

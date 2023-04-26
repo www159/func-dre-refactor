@@ -22,11 +22,13 @@ void handle_func_builtin(GNode *ast)
 // .e.g
 // let a = x^5+3;
 // print(a);
-// output: x^5+3;
+// # output: a = x^5+3;
+// argument is rvalue
+// so print(a) will be expanded to 
+// print(x^5+3);
 static void handle_print(GNode *ast)
 {
-    GNode *const exp = g_node_first_child(ast);
-    GNode *exp_mut = NULL;
+    GNode *exp = g_node_first_child(ast);
     struct MetaData *const meta_data = exp->data;
     if (meta_data->node_type == NODE_NAME)
     {
@@ -36,25 +38,14 @@ static void handle_print(GNode *ast)
         }
 
         printf("%s = ", meta_data->name->str);
-
-        exp_mut = g_node_first_child(exp);
     }
-    else
-    {
-        exp_mut = exp;
-        if (!is_declare(exp_mut))
-        {
-            return;
-        }
-        // expend rvalue
-        if (!try_expand(exp_mut))
-        {
-            return;
-        }
+    else {
         printf("rvalue = ");
     }
 
-    builtin_print(exp_mut, (enum NodeType)NULL);
+    emit(exp);
+    exp = g_node_first_child(ast);
+    builtin_print(exp, (enum NodeType)NULL);
     printf("\n");
 }
 

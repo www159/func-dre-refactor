@@ -53,8 +53,8 @@ static void unlink_node(GNode *ast)
     // one exp
     case NODE_MINUS:
     case NODE_FUNC_BUILT_IN:
-        GNode *const expr = g_node_first_child(ast);
-        unlink_node(expr);
+        GNode *const exp = g_node_first_child(ast);
+        unlink_node(exp);
         break;
 
     // no exp

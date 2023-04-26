@@ -6,11 +6,15 @@ struct MetaData *copy_meta_data(struct MetaData *src);
 
 struct MetaData *new_meta_data_symbol(GString *name);
 
+void destroy_meta_data(GNode *ast);
+
+struct MetaData *new_meta_data_func(enum BuiltinFunction func_type);
+
 // -------------------------------- func built in --------------------------------
 void handle_func_builtin(GNode *ast);
 
 // -------------------------------- help --------------------------------
-int try_expand(GNode *exp);
+// int try_expand(GNode *exp);
 
 gboolean is_declare(GNode *exp);
 
