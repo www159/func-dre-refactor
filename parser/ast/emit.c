@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <math.h>
 #include "ast.h"
 #include "mod.h"
 
@@ -189,6 +191,7 @@ static void handle_symbol(GNode *ast)
 }
 
 static void embed(GNode *exp, GNode *embed_exp);
+static double calc(GNode *_exp);
 // handle func embed
 // .e.g
 // let a = x^2 + x;
@@ -220,9 +223,7 @@ static void handle_func_embed(GNode *ast)
     // symbol node is deleted after expanding emit
     GNode *symbol_exp = g_node_first_child(ast);
 
-
     struct MetaData *meta_data = symbol_exp->data;
-    // only one node
     if (meta_data->node_type == NODE_X)
     {
         // symbol exp is replaced with embed exp
@@ -232,16 +233,26 @@ static void handle_func_embed(GNode *ast)
     else
     {
         g_node_children_foreach(symbol_exp, G_TRAVERSE_LEAVES, embed, embed_exp);
+    }
 
-    } 
-    // unlink and destroy embed exp
-    g_node_unlink(embed_exp);
-    destroy_ast(embed_exp);
     // replace embed node with symbol exp
     GNode *parent = ast->parent;
     guint pos = g_node_child_position(parent, ast);
     // unlink symbol exp before ast destroy
     g_node_unlink(symbol_exp);
+    // if embed exp is number
+    // replace symbol exp with number node with 
+    // calc result
+    struct MetaData *embed_exp_meta_data = embed_exp->data;
+    if (embed_exp_meta_data->node_type == NODE_NUMBER)
+    {
+        double val = calc(symbol_exp);
+        destroy_ast(symbol_exp);
+        symbol_exp = new_num(val);
+    }
+    // unlink and destroy embed exp
+    g_node_unlink(embed_exp);
+    destroy_ast(embed_exp);
     // unlink and destroy ast
     g_node_unlink(ast);
     destroy_ast(ast);
@@ -262,6 +273,41 @@ static void embed(GNode *exp, GNode *embed_exp)
         g_node_unlink(exp);
         destroy_ast(exp);
         g_node_insert(parent, pos, embed_exp_copy);
+    }
+}
+
+static double calc(GNode *_exp)
+{
+    GNode *l_exp = g_node_first_child(_exp);
+    GNode *r_exp = NULL;
+    if (l_exp != NULL)
+    {
+        r_exp = l_exp->next;
+    }
+    struct MetaData *const meta_data = _exp->data;
+    switch (meta_data->node_type)
+    {
+    case NODE_ADD:
+        return calc(l_exp) + calc(r_exp);
+    case NODE_SUB:
+        return calc(l_exp) - calc(r_exp);
+    case NODE_MUL:
+        return calc(l_exp) * calc(r_exp);
+    case NODE_DIV:
+        return calc(l_exp) / calc(r_exp);
+    case NODE_POWER:
+        return pow(calc(l_exp), calc(r_exp));
+    case NODE_EXP:
+        return exp(1);
+    case NODE_LN:
+        return log(calc(l_exp));
+    case NODE_MINUS:
+        return -calc(l_exp);
+    case NODE_NUMBER:
+        return meta_data->val;
+    default:
+        g_debug("failed to calc unknown node");
+        break;
     }
 }
 

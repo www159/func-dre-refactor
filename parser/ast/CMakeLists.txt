@@ -29,4 +29,5 @@ target_link_libraries(
     ast
     PUBLIC
     ${GLIB_LIBRARIES}
+    m
 )

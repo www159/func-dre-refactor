@@ -10,6 +10,7 @@
         "gmacros.h": "c",
         "cmath": "c",
         "type_traits": "c",
-        "mod.h": "c"
+        "mod.h": "c",
+        "math.h": "c"
     }
 }

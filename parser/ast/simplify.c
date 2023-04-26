@@ -64,7 +64,7 @@ static void unlink_node(GNode *ast)
     case NODE_X:
         break;
     default:
-        yyerror("failed to unlink node");
+        g_debug("failed to unlink unknown node");
         break;
     }
 }
