@@ -51,6 +51,7 @@ exp: exp '+' exp { $$ = new_ast(NODE_ADD, $1, $3); }
 stmt: exp ';' { }
 | LET NAME '=' exp ';' {
     $$ = new_ast(NODE_ASSIGN, $2, $4);
+    emit_assign($$);
 }
 ;
 
@@ -63,7 +64,7 @@ list: /* empty */ { $$ = NULL; }
 prog_list: /* empty */ { }
 | prog_list list EOL {
     emit($2);
-    simplify($2);
+    // simplify($2);
     printf(">>>");
 }
 | prog_list error EOL {

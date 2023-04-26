@@ -35,9 +35,8 @@ struct MetaData *new_meta_data_symbol(GString *name)
     return meta_data;
 }
 
-void destroy_meta_data(GNode *node)
+void destroy_meta_data(struct MetaData *meta_data)
 {
-    struct MetaData *meta_data = node->data;
     if (meta_data->node_type == NODE_NAME)
     {
         g_string_free(meta_data->name, TRUE);
@@ -87,7 +86,7 @@ GNode *new_ast(enum NodeType node_type, GNode *l_exp, GNode *r_exp)
 void destroy_ast(GNode *ast)
 {
     struct MetaData *const meta_data = ast->data;
-    g_node_traverse(ast, G_IN_ORDER, G_TRAVERSE_ALL, -1, destroy_meta_data, NULL);
+    g_node_traverse(ast, G_IN_ORDER, G_TRAVERSE_ALL, -1, destroy_data, NULL);
     g_node_destroy(ast);
 }
 

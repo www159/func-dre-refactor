@@ -12,5 +12,6 @@
         "type_traits": "c",
         "mod.h": "c",
         "math.h": "c"
-    }
+    },
+    "mesonbuild.configureOnOpen": false
 }

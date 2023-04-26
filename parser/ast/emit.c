@@ -26,9 +26,6 @@ void emit(GNode *ast)
     case NODE_FUNC_BUILT_IN:
         handle_func_builtin(ast);
         break;
-    case NODE_ASSIGN:
-        handle_assign(ast);
-        break;
     case NODE_LIST:
         handle_list(ast);
         break;
@@ -63,16 +60,14 @@ static void do_assign(GNode *symbol, GNode *exp);
 // parent -> symbol(exp)
 // effect symbol table
 // symbol -> exp
-static void handle_assign(GNode *ast)
+void emit_assign(GNode *ast)
 {
     GNode *symbol = g_node_first_child(ast);
     GNode *exp = symbol->next;
+    // just unlink symbol
+    // avoid to effect symbol table
     g_node_unlink(symbol);
     g_node_unlink(exp);
-    GNode *parent = ast->parent;
-    g_node_unlink(ast);
-    destroy_ast(ast);
-    g_node_append(parent, symbol);
 
     struct MetaData *const meta_data = symbol->data;
     meta_data->declared = TRUE;
@@ -99,6 +94,10 @@ static void handle_list(GNode *ast)
         emit(cur);
         next = cur->next;
     } while (cur != last);
+
+    // unlink and destroy 'link node'
+    g_node_unlink(ast);
+    destroy_ast(ast);
 }
 
 // handle expression
@@ -321,7 +320,7 @@ static double calc(GNode *_exp)
 static void handle_drevide(GNode *ast)
 {
     struct MetaData *meta_data = ast->data;
-    destroy_meta_data(meta_data);
+    destroy_data(meta_data);
     meta_data = new_meta_data_func(B_DRE);
     ast->data = meta_data;
     emit(ast);

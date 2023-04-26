@@ -85,6 +85,8 @@ GNode *new_exp();
 // 1. let xx = xxxx.
 void emit(GNode *ast);
 
+void emit_assign(GNode *ast);
+
 // --------------------------------  simplify program --------------------------------
 // delete 'program structure' node
 // remain variable node

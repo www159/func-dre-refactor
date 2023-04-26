@@ -29,10 +29,11 @@ void handle_func_builtin(GNode *ast)
 static void handle_print(GNode *ast)
 {
     GNode *exp = g_node_first_child(ast);
-    struct MetaData *const meta_data = exp->data;
+    struct MetaData *meta_data = copy_meta_data(exp->data);
+    emit(exp);
     if (meta_data->node_type == NODE_NAME)
     {
-        if (!is_declare(exp))
+        if (!meta_data->declared)
         {
             return;
         }
@@ -43,7 +44,7 @@ static void handle_print(GNode *ast)
         printf("rvalue = ");
     }
 
-    emit(exp);
+    destroy_meta_data(meta_data);
     exp = g_node_first_child(ast);
     builtin_print(exp, (enum NodeType)NULL);
     printf("\n");
