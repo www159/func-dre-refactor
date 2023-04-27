@@ -9,7 +9,7 @@ static int priority_larger(enum NodeType src, enum NodeType dest);
 static GNode *handle_dre(GNode *exp);
 
 // handle built_in_func
-void handle_func_builtin(GNode *ast)
+GNode *handle_func_builtin(GNode *ast)
 {
     struct MetaData *meta_data = ast->data;
 
@@ -17,9 +17,9 @@ void handle_func_builtin(GNode *ast)
     {
     case B_PRINT:
         handle_print(ast);
-        break;
+        return NULL;
     case B_DRE:
-        func_call(ast, handle_dre);
+        return func_call(ast, handle_dre);
         break;
     }
 }
@@ -35,8 +35,7 @@ void handle_func_builtin(GNode *ast)
 static void handle_print(GNode *ast)
 {
     GNode *exp = g_node_first_child(ast);
-    struct MetaData *meta_data = copy_meta_data(exp->data);
-    emit(exp);
+    struct MetaData *meta_data = exp->data;
     if (meta_data->node_type == NODE_NAME)
     {
         if (!meta_data->declared)
@@ -51,8 +50,7 @@ static void handle_print(GNode *ast)
         printf("rvalue = ");
     }
 
-    destroy_meta_data(meta_data);
-    exp = g_node_first_child(ast);
+    exp = emit(exp);
     builtin_print(exp, (enum NodeType)NULL);
     printf("\n");
 }

@@ -16,7 +16,7 @@ void destroy_meta_data(struct MetaData *meta_data);
 struct MetaData *new_meta_data_func(enum BuiltinFunction func_type);
 
 // -------------------------------- func built in --------------------------------
-void handle_func_builtin(GNode *ast);
+GNode *handle_func_builtin(GNode *ast);
 
 // -------------------------------- help --------------------------------
 
@@ -34,7 +34,7 @@ gboolean *new_gboolean(gboolean init);
 // -------------------------------- func call --------------------------------
 typedef GNode *(*FuncCallFunc)(GNode *exp);
 
-void func_call(GNode *func_call_exp, FuncCallFunc func_call_func);
+GNode *func_call(GNode *func_call_exp, FuncCallFunc func_call_func);
 
 // -------------------------------- clear zero --------------------------------
 GNode *clear_zero(GNode *exp);

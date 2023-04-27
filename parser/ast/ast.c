@@ -150,9 +150,7 @@ GNode *do_func_embed(GNode *symbol, GNode *exp)
     struct MetaData *meta_data = new_meta_data(NODE_FUNC_EMBED);
     GNode *ast = g_node_new(meta_data);
     g_node_append(ast, exp);
-    emit(exp);
-    // exp has been replaced
-    GNode *exp_expanded = g_node_first_child(ast);
+    GNode *exp_expanded = emit(exp);
     g_node_insert_before(ast, exp_expanded, symbol);
     return ast;
 }

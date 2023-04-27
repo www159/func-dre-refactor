@@ -3,13 +3,13 @@
 #include "ast.h"
 #include "mod.h"
 
-static void handle_assign(GNode *ast);
-static void handle_list(GNode *ast);
-static void handle_drevide(GNode *ast);
-static void handle_func_embed(GNode *ast);
-static void handle_symbol(GNode *ast);
-static void handle_exp(GNode *ast);
-void emit(GNode *ast)
+static GNode *handle_assign(GNode *ast);
+static GNode *handle_list(GNode *ast);
+static GNode *handle_drevide(GNode *ast);
+static GNode *handle_func_embed(GNode *ast);
+static GNode *handle_symbol(GNode *ast);
+static GNode *handle_exp(GNode *ast);
+GNode *emit(GNode *ast)
 {
     g_debug("start emit");
 
@@ -24,27 +24,20 @@ void emit(GNode *ast)
     switch (meta_data->node_type)
     {
     case NODE_FUNC_BUILT_IN:
-        handle_func_builtin(ast);
-        break;
+        return handle_func_builtin(ast);
     case NODE_LIST:
-        handle_list(ast);
-        break;
+        return handle_list(ast);
     case NODE_DREVIDE:
-        handle_drevide(ast);
-        break;
+        return handle_drevide(ast);
     case NODE_FUNC_EMBED:
-        handle_func_embed(ast);
-        break;
+        return handle_func_embed(ast);
     case NODE_NAME:
-        handle_symbol(ast);
-        break;
+        return handle_symbol(ast);
     default:
-        handle_exp(ast);
-        break;
+        return handle_exp(ast);
     }
 }
 
-static void do_assign(GNode *symbol, GNode *exp);
 // assignment prog
 // .e.g
 //
@@ -83,7 +76,7 @@ void emit_assign(GNode *ast)
     emit(exp);
 }
 
-static void handle_list(GNode *ast)
+static GNode *handle_list(GNode *ast)
 {
     GNode *const last = g_node_last_child(ast);
     GNode *next = g_node_first_child(ast);
@@ -98,17 +91,18 @@ static void handle_list(GNode *ast)
     // unlink and destroy 'link node'
     g_node_unlink(ast);
     destroy_ast(ast);
+    return (GNode *)NULL;
 }
 
 // handle expression
 // .e.g +,-,*,/,^,-
 //
-static void handle_exp(GNode *ast)
+static GNode *handle_exp(GNode *ast)
 {
     if (ast == NULL)
     {
         g_debug("abort:failed to emit NULL ast");
-        return;
+        return ast;
     }
 
     struct MetaData *meta_data = ast->data;
@@ -121,8 +115,8 @@ static void handle_exp(GNode *ast)
     case NODE_MUL:
     case NODE_DIV:
     case NODE_POWER:
-        GNode *const l_exp = g_node_first_child(ast);
-        GNode *const r_exp = l_exp->next;
+        GNode *l_exp = g_node_first_child(ast);
+        GNode *r_exp = l_exp->next;
         emit(l_exp);
         emit(r_exp);
         break;
@@ -140,6 +134,7 @@ static void handle_exp(GNode *ast)
     case NODE_X:
         break;
     }
+    return ast;
 }
 
 // handle symbol node
@@ -164,18 +159,18 @@ static void handle_exp(GNode *ast)
 //  |        |                  exp(x^5)
 // exp(x^5) exp(4*x)
 // deep copy moved variable
-static void handle_symbol(GNode *ast)
+static GNode *handle_symbol(GNode *ast)
 {
     struct MetaData *const meta_data = ast->data;
     if (!meta_data->declared)
     {
         g_debug("meet undeclared symbol: '%s' when expanding", meta_data->name->str);
-        return;
+        return ast;
     }
     GNode *const symbol_exp = g_node_first_child(ast);
-    GNode *symbol_exp_copy = g_node_copy_deep(symbol_exp, copy_meta_data, NULL);
+    GNode *symbol_exp_copy = copy_node(symbol_exp);
     replace_node_unlink(ast, symbol_exp_copy);
-    emit(symbol_exp_copy);
+    return emit(symbol_exp_copy);
 }
 
 static void embed(GNode *exp, GNode *embed_exp);
@@ -201,15 +196,14 @@ static double calc(GNode *_exp);
 //  symbol exp
 // turn to
 // parent -> (symbol exp)(embed exp)
-static void handle_func_embed(GNode *ast)
+static GNode *handle_func_embed(GNode *ast)
 {
     GNode *symbol = g_node_first_child(ast);
     GNode *embed_exp = symbol->next;
     // expand embedded exp and symbol
-    emit(symbol);
-    emit(embed_exp);
+    GNode *symbol_exp = emit(symbol);
+
     // symbol node is deleted after expanding emit
-    GNode *symbol_exp = g_node_first_child(ast);
 
     struct MetaData *meta_data = symbol_exp->data;
     if (meta_data->node_type == NODE_X)
@@ -220,7 +214,7 @@ static void handle_func_embed(GNode *ast)
     }
     else
     {
-        g_node_children_foreach(symbol_exp, G_TRAVERSE_LEAVES, embed, embed_exp);
+        g_node_children_foreach(symbol_exp, G_TRAVERSE_ALL, embed, embed_exp);
     }
     // if embed exp is number
     // replace symbol exp with number node with
@@ -237,28 +231,29 @@ static void handle_func_embed(GNode *ast)
     g_node_unlink(symbol_exp);
     replace_node(ast, symbol_exp);
 
+    GNode *ret = symbol_exp;
+
     struct MetaData *parent_meta_data = symbol_exp->parent->data;
     while (parent_meta_data->node_type == NODE_FUNC_BUILT_IN && parent_meta_data->func_type == B_DRE)
     {
         // call built in drevide func
-        emit(symbol_exp->parent);
+        ret = emit(symbol_exp->parent);
         parent_meta_data = symbol_exp->parent->data;
     }
+    return ret;
 }
 
 // replace 'x' with embed exp
 static void embed(GNode *exp, GNode *embed_exp)
 {
+    g_node_children_foreach(exp, G_TRAVERSE_ALL, embed, embed_exp);
     struct MetaData *const meta_data = exp->data;
     if (meta_data->node_type == NODE_X)
     {
         // deep copy embed exp
-        GNode *embed_exp_copy = g_node_copy_deep(embed_exp, copy_meta_data, NULL);
+        GNode *embed_exp_copy = copy_node(embed_exp);
         GNode *parent = exp->parent;
-        guint pos = g_node_child_position(parent, exp);
-        g_node_unlink(exp);
-        destroy_ast(exp);
-        g_node_insert(parent, pos, embed_exp_copy);
+        replace_node(exp, embed_exp_copy);
     }
 }
 
@@ -335,13 +330,14 @@ static double calc(GNode *_exp)
 // ast -> symbol       exp
 // do not optimize urgently.
 // code recurively
-static void handle_drevide(GNode *ast)
+static GNode *handle_drevide(GNode *ast)
 {
     GNode *parent = ast->parent;
     struct MetaData *meta_data = parent->data;
     // null node
     GNode *builtin_dre_node = g_node_new(new_meta_data_func(B_DRE));
     GNode *maybe_symbol = g_node_first_child(ast);
+    GNode *ret = NULL;
     g_node_unlink(maybe_symbol);
     // .e.g.2
     if (meta_data->node_type == NODE_FUNC_BUILT_IN)
@@ -349,7 +345,7 @@ static void handle_drevide(GNode *ast)
         replace_node(ast, maybe_symbol);
         replace_node_unlink(parent, builtin_dre_node);
         g_node_append(builtin_dre_node, parent);
-        emit(maybe_symbol);
+        return emit(maybe_symbol);
     }
     //.e.g.1
     else
@@ -358,6 +354,6 @@ static void handle_drevide(GNode *ast)
         g_node_append(builtin_dre_node, maybe_symbol);
         emit(maybe_symbol);
         // call built in drevide func
-        emit(builtin_dre_node);
+        return emit(builtin_dre_node);
     }
 }

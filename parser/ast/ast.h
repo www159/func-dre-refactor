@@ -88,7 +88,7 @@ GNode *do_func_embed(GNode *symbol, GNode *exp);
 // refresh variable values.
 // TODO
 // 1. let xx = xxxx.
-void emit(GNode *ast);
+GNode *emit(GNode *ast);
 
 void emit_assign(GNode *ast);
 
