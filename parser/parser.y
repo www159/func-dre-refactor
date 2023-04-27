@@ -44,7 +44,7 @@ exp: exp '+' exp { $$ = new_ast(NODE_ADD, $1, $3); }
 | dre_name { $$ = $1; }
 | EXP { $$ = new_exp(); }
 | X { $$ = new_x(); }
-| dre_name '(' exp ')' { $$ = new_ast(NODE_FUNC_EMBED, $1, $3); }
+| dre_name '(' exp ')' { $$ = do_func_embed($1, $3); }
 | FUNC '(' exp ')' { $$ = new_func($1, $3); }
 ;
 

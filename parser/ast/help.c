@@ -17,3 +17,20 @@ gboolean is_declare(GNode *exp)
     }
     return TRUE;
 }
+
+void replace_node(GNode *src, GNode *dest)
+{
+    GNode *parent = src->parent;
+    guint pos = g_node_child_position(parent, src);
+    g_node_unlink(src);
+    destroy_ast(src);
+    g_node_insert(parent, pos, dest);
+}
+
+void replace_node_unlink(GNode *src, GNode *dest)
+{
+    GNode *parent = src->parent;
+    guint pos = g_node_child_position(parent, src);
+    g_node_unlink(src);
+    g_node_insert(parent, pos, dest);
+}

@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/build/dre",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${fileDirname}",
+            "cwd": "${workspaceFolder}",
             "environment": [
                 {
                     "name": "G_MESSAGES_DEBUG",

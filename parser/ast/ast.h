@@ -77,6 +77,11 @@ GNode *new_x();
 
 GNode *new_exp();
 
+// -------------------------------- partial emit --------------------------------
+
+
+GNode *do_func_embed(GNode *symbol, GNode *exp);
+
 
 // -------------------------------- emit program --------------------------------
 // emit program ast to other structure.

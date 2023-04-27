@@ -79,7 +79,7 @@ void emit_assign(GNode *ast)
     }
 
     g_node_append(symbol, exp);
-    // try expand and embed
+    // try to expand and embed
     emit(exp);
 }
 
@@ -174,18 +174,7 @@ static void handle_symbol(GNode *ast)
     }
     GNode *const symbol_exp = g_node_first_child(ast);
     GNode *symbol_exp_copy = g_node_copy_deep(symbol_exp, copy_meta_data, NULL);
-    GNode *const parent = ast->parent;
-    if (parent == NULL)
-    {
-        g_debug("abort: should have parent");
-        return;
-    }
-    gint pos = g_node_child_position(parent, ast);
-    // just unlink, don't destroy
-    // avoid to effect symbol table
-    g_node_unlink(ast);
-
-    g_node_insert(parent, pos, symbol_exp_copy);
+    replace_node_unlink(ast, symbol_exp_copy);
     emit(symbol_exp_copy);
 }
 
@@ -233,14 +222,8 @@ static void handle_func_embed(GNode *ast)
     {
         g_node_children_foreach(symbol_exp, G_TRAVERSE_LEAVES, embed, embed_exp);
     }
-
-    // replace embed node with symbol exp
-    GNode *parent = ast->parent;
-    guint pos = g_node_child_position(parent, ast);
-    // unlink symbol exp before ast destroy
-    g_node_unlink(symbol_exp);
     // if embed exp is number
-    // replace symbol exp with number node with 
+    // replace symbol exp with number node with
     // calc result
     struct MetaData *embed_exp_meta_data = embed_exp->data;
     if (embed_exp_meta_data->node_type == NODE_NUMBER)
@@ -249,14 +232,18 @@ static void handle_func_embed(GNode *ast)
         destroy_ast(symbol_exp);
         symbol_exp = new_num(val);
     }
-    // unlink and destroy embed exp
-    g_node_unlink(embed_exp);
-    destroy_ast(embed_exp);
-    // unlink and destroy ast
-    g_node_unlink(ast);
-    destroy_ast(ast);
 
-    g_node_insert(parent, pos, symbol_exp);
+    // unlink symbol exp before ast destroy
+    g_node_unlink(symbol_exp);
+    replace_node(ast, symbol_exp);
+
+    struct MetaData *parent_meta_data = symbol_exp->parent->data;
+    while (parent_meta_data->node_type == NODE_FUNC_BUILT_IN && parent_meta_data->func_type == B_DRE)
+    {
+        // call built in drevide func
+        emit(symbol_exp->parent);
+        parent_meta_data = symbol_exp->parent->data;
+    }
 }
 
 // replace 'x' with embed exp
@@ -311,17 +298,66 @@ static double calc(GNode *_exp)
 }
 
 // handle derevide node
-// .e.g
+// .e.g.1
 // let a = x^2;
 // let b = a';
 // similiar with func call:
 // let b = dre(a);
+//          assign node
+//          _____|_____
+//         |           |
+//       symbol      dre node
+//                     |
+//                   symbol
+// turn to
+//          assign node
+//          _____|_____
+//         |           |
+//       symbol     builtin dre
+//                     |
+//                   symbol
 // just replace meta data with 'dre func node' and re-emit it
+// .e.g.2
+// let b = a'(x+3);
+// similiar with let b = dre(a(x+3))
+//         embed func node
+//           _____|_____
+//          |           |
+// ast -> dre node      exp
+//          |
+//        symbol
+// turn to
+//          builtin dre
+//               |
+//         embed func node
+//          _____|_____
+//         |           |
+// ast -> symbol       exp
+// do not optimize urgently.
+// code recurively
 static void handle_drevide(GNode *ast)
 {
-    struct MetaData *meta_data = ast->data;
-    destroy_data(meta_data);
-    meta_data = new_meta_data_func(B_DRE);
-    ast->data = meta_data;
-    emit(ast);
+    GNode *parent = ast->parent;
+    struct MetaData *meta_data = parent->data;
+    // null node
+    GNode *builtin_dre_node = g_node_new(new_meta_data_func(B_DRE));
+    GNode *maybe_symbol = g_node_first_child(ast);
+    g_node_unlink(maybe_symbol);
+    // .e.g.2
+    if (meta_data->node_type == NODE_FUNC_BUILT_IN)
+    {
+        replace_node(ast, maybe_symbol);
+        replace_node_unlink(parent, builtin_dre_node);
+        g_node_append(builtin_dre_node, parent);
+        emit(maybe_symbol);
+    }
+    //.e.g.1
+    else
+    {
+        replace_node(ast, builtin_dre_node);
+        g_node_append(builtin_dre_node, maybe_symbol);
+        emit(maybe_symbol);
+        // call built in drevide func
+        emit(builtin_dre_node);
+    }
 }

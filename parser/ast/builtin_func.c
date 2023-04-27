@@ -6,6 +6,8 @@ static void builtin_print(GNode *exp, enum NodeType parent_type);
 static void parens_or_not(enum NodeType cur_type, enum NodeType parent_type, int is_left);
 static int priority_larger(enum NodeType src, enum NodeType dest);
 
+static GNode *handle_dre(GNode *exp);
+
 // handle built_in_func
 void handle_func_builtin(GNode *ast)
 {
@@ -15,6 +17,10 @@ void handle_func_builtin(GNode *ast)
     {
     case B_PRINT:
         handle_print(ast);
+        break;
+    case B_DRE:
+        func_call(ast, handle_dre);
+        break;
     }
 }
 
@@ -24,7 +30,7 @@ void handle_func_builtin(GNode *ast)
 // print(a);
 // # output: a = x^5+3;
 // argument is rvalue
-// so print(a) will be expanded to 
+// so print(a) will be expanded to
 // print(x^5+3);
 static void handle_print(GNode *ast)
 {
@@ -40,7 +46,8 @@ static void handle_print(GNode *ast)
 
         printf("%s = ", meta_data->name->str);
     }
-    else {
+    else
+    {
         printf("rvalue = ");
     }
 
@@ -180,5 +187,97 @@ static int priority_larger(enum NodeType src, enum NodeType dest)
         }
     default:
         return 0;
+    }
+}
+
+static GNode *handle_dre(GNode *exp)
+{
+    struct MetaData *meta_data = exp->data;
+    GNode *l_exp = g_node_first_child(exp);
+    GNode *r_exp = NULL;
+
+    if (l_exp != NULL)
+    {
+        r_exp = l_exp->next;
+    }
+
+    switch (meta_data->node_type)
+    {
+    case NODE_ADD:
+    case NODE_SUB:
+        handle_dre(l_exp);
+        handle_dre(r_exp);
+        return exp;
+    case NODE_MUL:
+        g_node_unlink(l_exp);
+        g_node_unlink(r_exp);
+        GNode *l_exp_copy = copy_node(l_exp);
+        GNode *r_exp_copy = copy_node(r_exp);
+        handle_dre(l_exp);
+        handle_dre(r_exp_copy);
+        GNode *l_add = new_ast(NODE_MUL, l_exp, r_exp);
+        GNode *r_add = new_ast(NODE_MUL, l_exp_copy, r_exp_copy);
+        g_node_append(exp, l_add);
+        g_node_append(exp, r_add);
+        meta_data->node_type = NODE_ADD;
+        return exp;
+    case NODE_DIV:
+    {
+        g_node_unlink(r_exp);
+        g_node_unlink(l_exp);
+        GNode *r_exp_l_copy = copy_node(r_exp);
+        GNode *r_exp_r_copy = copy_node(r_exp);
+        GNode *l_exp_copy = copy_node(l_exp);
+        handle_dre(l_exp);
+        handle_dre(r_exp_r_copy);
+        GNode *l_add = new_ast(NODE_MUL, l_exp, r_exp_l_copy);
+        GNode *r_add = new_ast(NODE_MUL, l_exp_copy, r_exp_r_copy);
+        GNode *l_div = new_ast(NODE_ADD, l_add, r_add);
+        GNode *pow = new_num(2);
+        GNode *r_div = new_ast(NODE_POWER, r_exp, pow);
+        g_node_append(exp, l_div);
+        g_node_append(exp, r_div);
+        return exp;
+    }
+    case NODE_POWER:
+    {
+        GNode *l_exp_l_copy = copy_node(l_exp);
+        GNode *l_exp_r_t_copy = copy_node(l_exp);
+        GNode *l_exp_r_b_copy = copy_node(l_exp);
+        GNode *r_exp_l_copy = copy_node(r_exp);
+        GNode *r_exp_r_copy = copy_node(r_exp);
+        handle_dre(r_exp_l_copy);
+        handle_dre(l_exp_r_t_copy);
+        GNode *mul = new_ast(NODE_LN, l_exp_l_copy, NULL);
+        GNode *l_add = new_ast(NODE_MUL, r_exp_l_copy, mul);
+        GNode *r_t = new_ast(NODE_MUL, l_exp_r_t_copy, r_exp_r_copy);
+        GNode *r_add = new_ast(NODE_DIV, r_t, l_exp_r_b_copy);
+        mul = new_ast(NODE_ADD, l_add, r_add);
+        GNode *temp = g_node_new(new_meta_data(NODE_MUL));
+        replace_node_unlink(exp, temp);
+        g_node_append(temp, mul);
+        g_node_append(temp, exp);
+        return temp;
+    }
+    case NODE_MINUS:
+        handle_dre(l_exp);
+        return exp;
+    case NODE_LN:
+        g_node_unlink(l_exp);
+        GNode *top = copy_node(l_exp);
+        handle_dre(top);
+        g_node_append(exp, top);
+        g_node_append(exp, l_exp);
+        meta_data->node_type = NODE_DIV;
+        return exp;
+    case NODE_X:
+        meta_data->node_type = NODE_NUMBER;
+        meta_data->val = 1;
+        return exp;
+    case NODE_EXP:
+        meta_data->node_type = NODE_NUMBER;
+    case NODE_NUMBER:
+        meta_data->val = 0;
+        return exp;
     }
 }

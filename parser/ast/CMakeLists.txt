@@ -14,9 +14,10 @@ add_library(
     emit.c
     yacc.c
     builtin_func.c
-    simplify.c
+    func.c
     init.c
     help.c
+    format.c
 )
 
 target_include_directories(
