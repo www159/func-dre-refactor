@@ -73,6 +73,8 @@ GNode *new_list(GNode *pre, GNode *list);
 
 GNode *new_num(double num);
 
+GNode *new_symbol(GString *name);
+
 GNode *new_x();
 
 GNode *new_exp();
@@ -101,6 +103,6 @@ void simplify(GNode *ast);
 
 extern GHashTable *symbol_table;
 
-GNode *look_up_symbol_table(char *);
+GNode *look_up_symbol_table(GString *name);
 
 #endif

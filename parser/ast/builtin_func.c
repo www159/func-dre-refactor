@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "ast.h"
 #include "mod.h"
 
@@ -5,9 +6,6 @@ static void handle_print(GNode *ast);
 static void builtin_print(GNode *exp, enum NodeType parent_type);
 static void parens_or_not(enum NodeType cur_type, enum NodeType parent_type, int is_left);
 static int priority_larger(enum NodeType src, enum NodeType dest);
-
-static GNode *handle_dre(GNode *exp);
-
 // handle built_in_func
 GNode *handle_func_builtin(GNode *ast)
 {
@@ -19,7 +17,6 @@ GNode *handle_func_builtin(GNode *ast)
         handle_print(ast);
         return NULL;
     case B_DRE:
-        return func_call(ast, handle_dre);
         break;
     }
 }
@@ -38,10 +35,6 @@ static void handle_print(GNode *ast)
     struct MetaData *meta_data = exp->data;
     if (meta_data->node_type == NODE_NAME)
     {
-        if (!meta_data->declared)
-        {
-            return;
-        }
 
         printf("%s = ", meta_data->name->str);
     }
@@ -67,12 +60,9 @@ static void builtin_print(GNode *exp, enum NodeType parent_type)
     struct MetaData *const meta_data = exp->data;
 
     // warn macro dependenies
-    GNode *const l_exp = g_node_first_child(exp);
+    GNode *l_exp = NULL;
     GNode *r_exp = NULL;
-    if (l_exp != NULL)
-    {
-        r_exp = l_exp->next;
-    }
+    get_l_r_exp(exp, &l_exp, &r_exp);
 
     switch (meta_data->node_type)
     {
@@ -188,16 +178,19 @@ static int priority_larger(enum NodeType src, enum NodeType dest)
     }
 }
 
-static GNode *handle_dre(GNode *exp)
+GNode *handle_dre_immut(GNode *exp)
+{
+    GNode *exp_copy = copy_node(exp);
+    handle_dre(exp_copy);
+    return exp_copy;
+}
+
+void handle_dre(GNode *exp)
 {
     struct MetaData *meta_data = exp->data;
-    GNode *l_exp = g_node_first_child(exp);
+    GNode *l_exp = NULL;
     GNode *r_exp = NULL;
-
-    if (l_exp != NULL)
-    {
-        r_exp = l_exp->next;
-    }
+    get_l_r_exp(exp, &l_exp, &r_exp);
 
     switch (meta_data->node_type)
     {
@@ -205,7 +198,7 @@ static GNode *handle_dre(GNode *exp)
     case NODE_SUB:
         handle_dre(l_exp);
         handle_dre(r_exp);
-        return exp;
+        break;
     case NODE_MUL:
         g_node_unlink(l_exp);
         g_node_unlink(r_exp);
@@ -218,11 +211,11 @@ static GNode *handle_dre(GNode *exp)
         g_node_append(exp, l_add);
         g_node_append(exp, r_add);
         meta_data->node_type = NODE_ADD;
-        return exp;
+        break;
     case NODE_DIV:
     {
-        g_node_unlink(r_exp);
         g_node_unlink(l_exp);
+        g_node_unlink(r_exp);
         GNode *r_exp_l_copy = copy_node(r_exp);
         GNode *r_exp_r_copy = copy_node(r_exp);
         GNode *l_exp_copy = copy_node(l_exp);
@@ -235,10 +228,13 @@ static GNode *handle_dre(GNode *exp)
         GNode *r_div = new_ast(NODE_POWER, r_exp, pow);
         g_node_append(exp, l_div);
         g_node_append(exp, r_div);
-        return exp;
+        break;
     }
     case NODE_POWER:
     {
+        GNode *exp_copy = copy_node(exp);
+        g_node_unlink(l_exp);
+        g_node_unlink(r_exp);
         GNode *l_exp_l_copy = copy_node(l_exp);
         GNode *l_exp_r_t_copy = copy_node(l_exp);
         GNode *l_exp_r_b_copy = copy_node(l_exp);
@@ -251,15 +247,14 @@ static GNode *handle_dre(GNode *exp)
         GNode *r_t = new_ast(NODE_MUL, l_exp_r_t_copy, r_exp_r_copy);
         GNode *r_add = new_ast(NODE_DIV, r_t, l_exp_r_b_copy);
         mul = new_ast(NODE_ADD, l_add, r_add);
-        GNode *temp = g_node_new(new_meta_data(NODE_MUL));
-        replace_node_unlink(exp, temp);
-        g_node_append(temp, mul);
-        g_node_append(temp, exp);
-        return temp;
+        meta_data->node_type = NODE_MUL;
+        g_node_append(exp, mul);
+        g_node_append(exp, exp_copy);
+        break;
     }
     case NODE_MINUS:
         handle_dre(l_exp);
-        return exp;
+        break;
     case NODE_LN:
         g_node_unlink(l_exp);
         GNode *top = copy_node(l_exp);
@@ -267,15 +262,15 @@ static GNode *handle_dre(GNode *exp)
         g_node_append(exp, top);
         g_node_append(exp, l_exp);
         meta_data->node_type = NODE_DIV;
-        return exp;
+        break;
     case NODE_X:
         meta_data->node_type = NODE_NUMBER;
         meta_data->val = 1;
-        return exp;
+        break;
     case NODE_EXP:
         meta_data->node_type = NODE_NUMBER;
     case NODE_NUMBER:
         meta_data->val = 0;
-        return exp;
+        break;
     }
 }

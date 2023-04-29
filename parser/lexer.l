@@ -30,7 +30,7 @@ EXP ([Ee][-+]?[0-9]+)
 "dre"   { yylval.func_type = B_DRE; return FUNC; }
 
 [a-zA-Z][a-zA-Z0-9]* { 
-    yylval.symbol = look_up_symbol_table(yytext); 
+    yylval.name = g_string_new(yytext);
     return NAME; 
 }
 

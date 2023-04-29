@@ -7,12 +7,12 @@
 %union {
     struct GNode *ast;
     double num;
-    struct GNode *symbol;
+    struct GString *name;
     int func_type;
 }
 
 %token <num> NUMBER
-%token <symbol> NAME
+%token <name> NAME
 %token <func_type> FUNC
 %token EOL
 
@@ -29,7 +29,7 @@
 %start prog_list
 %%
 
-dre_name: NAME { $$ = $1; }
+dre_name: NAME { $$ = new_symbol($1); }
 | dre_name DRE_ID { $$ = new_ast(NODE_DREVIDE, $1, NULL); }
 
 exp: exp '+' exp { $$ = new_ast(NODE_ADD, $1, $3); }
@@ -44,14 +44,13 @@ exp: exp '+' exp { $$ = new_ast(NODE_ADD, $1, $3); }
 | dre_name { $$ = $1; }
 | EXP { $$ = new_exp(); }
 | X { $$ = new_x(); }
-| dre_name '(' exp ')' { $$ = do_func_embed($1, $3); }
+| dre_name '(' exp ')' { $$ = new_ast(NODE_FUNC_EMBED, $1, $3); }
 | FUNC '(' exp ')' { $$ = new_func($1, $3); }
 ;
 
 stmt: exp ';' { }
 | LET NAME '=' exp ';' {
-    $$ = new_ast(NODE_ASSIGN, $2, $4);
-    emit_assign($$);
+    $$ = new_ast(NODE_ASSIGN, new_symbol($2), $4);
 }
 ;
 

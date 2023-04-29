@@ -3,6 +3,15 @@
 #include "ast.h"
 #include "mod.h"
 
+// FIXME kill global var
+typedef struct
+{
+    int dre_cnt;
+} EmitSingal;
+
+int dre_cnt = 0;
+gboolean is_func_embed = FALSE;
+
 static GNode *handle_assign(GNode *ast);
 static GNode *handle_list(GNode *ast);
 static GNode *handle_drevide(GNode *ast);
@@ -11,7 +20,6 @@ static GNode *handle_symbol(GNode *ast);
 static GNode *handle_exp(GNode *ast);
 GNode *emit(GNode *ast)
 {
-    g_debug("start emit");
 
     if (ast == NULL)
     {
@@ -20,6 +28,8 @@ GNode *emit(GNode *ast)
     }
 
     struct MetaData *meta_data = ast->data;
+
+    g_debug("emit '%s'", node_type_str(meta_data->node_type));
 
     switch (meta_data->node_type)
     {
@@ -33,47 +43,22 @@ GNode *emit(GNode *ast)
         return handle_func_embed(ast);
     case NODE_NAME:
         return handle_symbol(ast);
+    case NODE_ASSIGN:
+        return handle_assign(ast);
     default:
         return handle_exp(ast);
     }
 }
 
-// assignment prog
-// .e.g
-//
-// let symbol = exp;
-//       parent
-//         |
-//     ASSIGN_NODE
-//      ___|___
-//     |       |
-//   symbol   exp
-//
-// turn to
-// parent -> symbol(exp)
-// effect symbol table
-// symbol -> exp
-void emit_assign(GNode *ast)
+GNode *handle_assign(GNode *ast)
 {
     GNode *symbol = g_node_first_child(ast);
+    struct MetaData *meta_data = symbol->data;
     GNode *exp = symbol->next;
-    // just unlink symbol
-    // avoid to effect symbol table
-    g_node_unlink(symbol);
-    g_node_unlink(exp);
-
-    struct MetaData *const meta_data = symbol->data;
-    meta_data->declared = TRUE;
-    GNode *symbol_exp = g_node_first_child(symbol);
-    if (symbol_exp != NULL)
-    {
-        g_node_unlink(symbol_exp);
-        destroy_ast(symbol_exp);
-    }
-
-    g_node_append(symbol, exp);
-    // try to expand and embed
-    emit(exp);
+    emit(symbol);
+    exp = emit(exp);
+    replace_symbol_exp(meta_data->name, exp);
+    return look_up_symbol_table(meta_data->name);
 }
 
 static GNode *handle_list(GNode *ast)
@@ -117,130 +102,98 @@ static GNode *handle_exp(GNode *ast)
     case NODE_POWER:
         GNode *l_exp = g_node_first_child(ast);
         GNode *r_exp = l_exp->next;
-        emit(l_exp);
-        emit(r_exp);
-        break;
+        l_exp = emit(l_exp);
+        r_exp = emit(r_exp);
+        return new_ast(meta_data->node_type, l_exp, r_exp);
 
     // one exp
+    case NODE_LN:
     case NODE_MINUS:
-        GNode *const exp = g_node_first_child(ast);
-        emit(exp);
-        break;
+        GNode *exp = g_node_first_child(ast);
+        exp = emit(exp);
+        return new_ast(meta_data->node_type, exp, NULL);
 
     // no exp
-    case NODE_LN:
     case NODE_EXP:
+        return new_exp();
     case NODE_NUMBER:
+        return new_num(meta_data->val);
     case NODE_X:
-        break;
+        return new_x();
+    default:
+        return NULL;
     }
-    return ast;
 }
 
-// handle symbol node
-// 1. expand exp with variable
-// .e.g
-// ```
-// let a = x^5;
-// let b = a+4*x;
-// # b = x^5+4*x;
-// ```
-//    name node
-//      |
-//     exp(x^5)
-//
-//     parent
-//     ___|___
-//    |       |
-// name node  exp(4*x)       symbol table
-//                               |
-//    parent                   name node
-//   ___|____                    |
-//  |        |                  exp(x^5)
-// exp(x^5) exp(4*x)
-// deep copy moved variable
 static GNode *handle_symbol(GNode *ast)
 {
-    struct MetaData *const meta_data = ast->data;
+    struct MetaData *meta_data = ast->data;
+    GNode *symbol = look_up_symbol_table(meta_data->name);
+    meta_data = symbol->data;
+
     if (!meta_data->declared)
     {
         g_debug("meet undeclared symbol: '%s' when expanding", meta_data->name->str);
-        return ast;
+        return NULL;
     }
-    GNode *const symbol_exp = g_node_first_child(ast);
-    GNode *symbol_exp_copy = copy_node(symbol_exp);
-    replace_node_unlink(ast, symbol_exp_copy);
-    return emit(symbol_exp_copy);
-}
+    GNode *symbol_exp = g_node_first_child(symbol);
+    g_node_unlink(symbol_exp);
 
+    GNode *symbol_exp_cleared = symbol_exp;
+
+    if (!is_func_embed)
+    {
+        if (dre_cnt > 0)
+        {
+
+            while (dre_cnt > 0)
+            {
+                dre_cnt--;
+                handle_dre(symbol_exp);
+            }
+            symbol_exp_cleared = clear_all(symbol_exp);
+            destroy_ast(symbol_exp);
+        }
+    }
+    return symbol_exp_cleared;
+}
 static void embed(GNode *exp, GNode *embed_exp);
 static double calc(GNode *_exp);
-// handle func embed
-// .e.g
-// let a = x^2 + x;
-// let b = a(2*x);
-// print(b);
-// # output (2*x)^2 + 2*x;
-// exception :
-// let a = b^2 + b;
-// let c = a(2*x);
-// # c = a(2*x) = b(2*x)^2 + b(2*x);
-// but expanding after every assignment;
-//         parent
-//           |
-//       embed node
-//       ____|____
-//      |         |
-//  name node    embed exp
-//      |
-//  symbol exp
-// turn to
-// parent -> (symbol exp)(embed exp)
-static GNode *handle_func_embed(GNode *ast)
+
+static GNode *handle_func_embed(GNode *const ast)
 {
+    is_func_embed = TRUE;
     GNode *symbol = g_node_first_child(ast);
     GNode *embed_exp = symbol->next;
-    // expand embedded exp and symbol
     GNode *symbol_exp = emit(symbol);
+    embed_exp = emit(embed_exp);
+    g_node_children_foreach(symbol_exp, G_TRAVERSE_ALL, embed, embed_exp);
 
-    // symbol node is deleted after expanding emit
+    // embed_exp should dead
+    destroy_ast(embed_exp);
 
-    struct MetaData *meta_data = symbol_exp->data;
-    if (meta_data->node_type == NODE_X)
-    {
-        // symbol exp is replaced with embed exp
-        embed(symbol_exp, embed_exp);
-        symbol_exp = g_node_first_child(ast);
-    }
-    else
-    {
-        g_node_children_foreach(symbol_exp, G_TRAVERSE_ALL, embed, embed_exp);
-    }
-    // if embed exp is number
-    // replace symbol exp with number node with
-    // calc result
-    struct MetaData *embed_exp_meta_data = embed_exp->data;
-    if (embed_exp_meta_data->node_type == NODE_NUMBER)
+    struct MetaData *meta_data = embed_exp->data;
+    if (meta_data->node_type == NODE_EXP || meta_data->node_type == NODE_NUMBER)
     {
         double val = calc(symbol_exp);
         destroy_ast(symbol_exp);
-        symbol_exp = new_num(val);
+        return new_num(val);
     }
 
-    // unlink symbol exp before ast destroy
-    g_node_unlink(symbol_exp);
-    replace_node(ast, symbol_exp);
-
-    GNode *ret = symbol_exp;
-
-    struct MetaData *parent_meta_data = symbol_exp->parent->data;
-    while (parent_meta_data->node_type == NODE_FUNC_BUILT_IN && parent_meta_data->func_type == B_DRE)
+    // handle dre id
+    // .e.g
+    // let b = a'''(a);
+    while (dre_cnt > 0)
     {
-        // call built in drevide func
-        ret = emit(symbol_exp->parent);
-        parent_meta_data = symbol_exp->parent->data;
+        dre_cnt--;
+        handle_dre(symbol_exp);
     }
-    return ret;
+
+    GNode *symbol_exp_cleared = clear_all(symbol_exp);
+    destroy_ast(symbol_exp);
+
+    is_func_embed = FALSE;
+    return symbol_exp_cleared;
 }
 
 // replace 'x' with embed exp
@@ -259,13 +212,11 @@ static void embed(GNode *exp, GNode *embed_exp)
 
 static double calc(GNode *_exp)
 {
-    GNode *l_exp = g_node_first_child(_exp);
+    GNode *l_exp = NULL;
     GNode *r_exp = NULL;
-    if (l_exp != NULL)
-    {
-        r_exp = l_exp->next;
-    }
+    get_l_r_exp(_exp, &l_exp, &r_exp);
     struct MetaData *const meta_data = _exp->data;
+
     switch (meta_data->node_type)
     {
     case NODE_ADD:
@@ -292,68 +243,9 @@ static double calc(GNode *_exp)
     }
 }
 
-// handle derevide node
-// .e.g.1
-// let a = x^2;
-// let b = a';
-// similiar with func call:
-// let b = dre(a);
-//          assign node
-//          _____|_____
-//         |           |
-//       symbol      dre node
-//                     |
-//                   symbol
-// turn to
-//          assign node
-//          _____|_____
-//         |           |
-//       symbol     builtin dre
-//                     |
-//                   symbol
-// just replace meta data with 'dre func node' and re-emit it
-// .e.g.2
-// let b = a'(x+3);
-// similiar with let b = dre(a(x+3))
-//         embed func node
-//           _____|_____
-//          |           |
-// ast -> dre node      exp
-//          |
-//        symbol
-// turn to
-//          builtin dre
-//               |
-//         embed func node
-//          _____|_____
-//         |           |
-// ast -> symbol       exp
-// do not optimize urgently.
-// code recurively
 static GNode *handle_drevide(GNode *ast)
 {
-    GNode *parent = ast->parent;
-    struct MetaData *meta_data = parent->data;
-    // null node
-    GNode *builtin_dre_node = g_node_new(new_meta_data_func(B_DRE));
-    GNode *maybe_symbol = g_node_first_child(ast);
-    GNode *ret = NULL;
-    g_node_unlink(maybe_symbol);
-    // .e.g.2
-    if (meta_data->node_type == NODE_FUNC_BUILT_IN)
-    {
-        replace_node(ast, maybe_symbol);
-        replace_node_unlink(parent, builtin_dre_node);
-        g_node_append(builtin_dre_node, parent);
-        return emit(maybe_symbol);
-    }
-    //.e.g.1
-    else
-    {
-        replace_node(ast, builtin_dre_node);
-        g_node_append(builtin_dre_node, maybe_symbol);
-        emit(maybe_symbol);
-        // call built in drevide func
-        return emit(builtin_dre_node);
-    }
+    GNode *exp = g_node_first_child(ast);
+    dre_cnt++;
+    return emit(exp);
 }

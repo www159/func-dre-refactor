@@ -129,6 +129,12 @@ GNode *new_num(double num)
     return ast;
 }
 
+GNode *new_symbol(GString *name) {
+    GNode *ast = g_node_new(new_meta_data_symbol(name));
+    
+    return ast;
+}
+
 GNode *new_x()
 {
     struct MetaData *const meta_data = new_meta_data(NODE_X);
